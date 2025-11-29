@@ -54,7 +54,7 @@ def add_product_to_category():
 
     except:
         db.session.rollback()
-        return jsonify({"message": "unable to add product to category"})
+        return jsonify({"message": "unable to add product to category"}), 400
 
     return jsonify({"message": "product added to category", "results": product_schema.dump(product_query)}), 200
 

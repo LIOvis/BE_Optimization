@@ -1,56 +1,32 @@
 from flask import jsonify, request
 
-from models.company import Companies
+from models.company import Companies, companies_schema, company_schema
+from util.reflection import populate_object
 from db import db
 
 def add_company():
-    post_data = request.form if request.form else request.get_json()
+    post_data = request.form if request.form else request.json
 
-    fields = ['company_name']
-    required_fields = ['company_name']
+    new_company = Companies.new_company_obj()
 
-    values = {}
-
-    for field in fields:
-        field_data = post_data.get(field)
-
-        if field in required_fields and not  field_data:
-            return jsonify({"message": f"{field} is required"}), 404
-        
-        values[field] = field_data
-
-    new_company = Companies(values['company_name'])
+    populate_object(new_company, post_data)
 
     try:
         db.session.add(new_company)
         db.session.commit()
+
     except:
         db.session.rollback()
-        return jsonify({"message": "unable to create record"}), 400
-    
-    query = db.session.query(Companies).filter(Companies.company_name == values['company_name']).first()
+        return jsonify({"message": "unable to add company"}), 400
 
-    company = {
-        "company_id": query.company_id,
-        "company_name": query.company_name
-    }
+    return jsonify({"message": "company added", "result": company_schema.dump(new_company)}), 201
 
-    return jsonify({"message": "company created", "result": company}), 201
 
 def get_all_companies():
     query = db.session.query(Companies).all()
 
-    company_list = []
+    return jsonify({"message": "company found", "results": companies_schema.dump(query)}), 200
 
-    for company in query:
-        company_dict = {
-            "company_id": company.company_id,
-            "company_name": company.company_name
-        }
-
-        company_list.append(company_dict)
-
-    return jsonify({"message": "companies found", "results": company_list}), 200
 
 def get_company_by_id(company_id):
     query = db.session.query(Companies).filter(Companies.company_id == company_id).first()
@@ -58,32 +34,26 @@ def get_company_by_id(company_id):
     if not query:
         return jsonify({"message": "company not found"}), 404
     
-    company = {
-        "company_id": query.company_id, "company_name": query.company_name
-    }
-    
-    return jsonify({"message": "company found", "result": company}), 200
+    return jsonify({"message": "company found", "result": company_schema.dump(query)}), 200
 
 def update_company_by_id(company_id):
     post_data = request.form if request.form else request.json
     query = db.session.query(Companies).filter(Companies.company_id == company_id).first()
 
-    query.company_name = post_data.get("company_name", query.company_name)
+    if not query:
+        return jsonify({"message": "company not found"}), 404
+    
 
     try:
+        populate_object(query, post_data)
         db.session.commit()
+    
     except:
         db.session.rollback()
-        return jsonify({"message": "company could not be updated"}), 400
-    
-    updated_company_query = db.session.query(Companies).filter(Companies.company_id == company_id).first()
+        return jsonify({"message": "unable to update company"}), 400
 
-    company = {
-        "company_id": updated_company_query.company_id,
-        "company_name": updated_company_query.company_name
-    }
+    return jsonify({"message": "company updated", "result": company_schema.dump(query)}), 200
 
-    return jsonify({"message": "company updated", "result": company}), 200
 
 def delete_company_by_id(company_id):
     query = db.session.query(Companies).filter(Companies.company_id == company_id).first()

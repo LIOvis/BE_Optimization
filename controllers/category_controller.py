@@ -17,7 +17,7 @@ def add_category():
 
     except:
         db.session.rollback()
-        return jsonify({"message": "unable to add category"})
+        return jsonify({"message": "unable to add category"}), 400
 
     return jsonify({"message": "category added", "result": category_schema.dump(new_category)}), 201
 
